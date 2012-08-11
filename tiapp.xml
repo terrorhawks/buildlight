@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ti:app xmlns:ti="http://ti.appcelerator.org">
+    <sdk-version>__MACOSX</sdk-version>
     <deployment-targets>
         <target device="mobileweb">false</target>
         <target device="iphone">true</target>
@@ -23,6 +24,7 @@
     <navbar-hidden>false</navbar-hidden>
     <analytics>true</analytics>
     <guid>567fa92f-b603-4641-9bb5-ed2771412357</guid>
+    <property name="ti.android.threadstacksize" type="int">42000</property>
     <iphone>
         <orientations device="iphone">
             <orientation>Ti.UI.PORTRAIT</orientation>
@@ -34,6 +36,5 @@
             <orientation>Ti.UI.LANDSCAPE_RIGHT</orientation>
         </orientations>
     </iphone>
-    <android xmlns:android="http://schemas.android.com/apk/res/android">
-    </android>
+    <android xmlns:android="http://schemas.android.com/apk/res/android"/>
 </ti:app>

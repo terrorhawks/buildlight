@@ -1,6 +1,9 @@
 var dius = {};
 
+var Ti = Titanium;
+
 dius.buildlight = function() {
+     "use strict";
  
     var _tabGroup = Titanium.UI.createTabGroup();
     var _flexSpace = Titanium.UI.createButton({systemButton:Titanium.UI.iPhone.SystemButton.FLEXIBLE_SPACE});
@@ -10,25 +13,27 @@ dius.buildlight = function() {
 	var _indicator;
     var _current_status;
 
+    var _textFieldsToSave;
+
     var success = Titanium.Filesystem.getFile(Titanium.Filesystem.resourcesDirectory,'success.mp3');
     var failure = Titanium.Filesystem.getFile(Titanium.Filesystem.resourcesDirectory,'failure.mp3');
     var sound_success = Titanium.Media.createSound({sound:success});
     var sound_failure = Titanium.Media.createSound({sound:failure});
 
 
-    var db = {}
+    var db = {};
     
     db.init = function() {
-    	var db = Titanium.Database.open('mydb');
+        var db = Titanium.Database.open('mydb');
 		db.execute('CREATE TABLE IF NOT EXISTS BUILDLIGHT_CONFIG (ID TEXT, NAME TEXT)');
 		var rows = db.execute('SELECT * FROM BUILDLIGHT_CONFIG');
 		if (rows.getRowCount()===0) {
 			Ti.API.debug("************ INSERTING into db the default config ***************");
-			db.execute('INSERT INTO BUILDLIGHT_CONFIG (ID, NAME ) VALUES(?,?)','host','http://dc.dius.local:8080/jenkins');
-			db.execute('INSERT INTO BUILDLIGHT_CONFIG (ID, NAME ) VALUES(?,?)','project_name','ExampleBuild');	
+			db.execute('INSERT INTO BUILDLIGHT_CONFIG (ID, NAME ) VALUES(?,?)','host','host');
+			db.execute('INSERT INTO BUILDLIGHT_CONFIG (ID, NAME ) VALUES(?,?)','project_name','project name');
 		}
 		rows.close();
-    	db.close();
+        db.close();
     }
     
     db.config = function() {
@@ -46,7 +51,7 @@ dius.buildlight = function() {
     
     db.update = function(config) {
     	var db = Titanium.Database.open('mydb');
-    	for (i in config) {
+    	for (var i in config) {
     		Ti.API.debug('key is: ' + config[i].name + ', value is: ' + config[i].value.value);
 			db.execute('UPDATE BUILDLIGHT_CONFIG SET NAME = ? WHERE ID = ?', config[i].value.value, config[i].name);
 		}
@@ -55,11 +60,7 @@ dius.buildlight = function() {
     
     function _registerFailedCallback(e) {
 	    Ti.API.debug(e.error);
-	    var errorDialog = Titanium.UI.createAlertDialog({
-	      title : "In a pickle",
-	      message : "Failed to access Jenkins build " + e.error
-	    });
-	    errorDialog.show();
+	    _alertDialog("In a pickle","Failed to access Jenkins build " + e.error);
 	}
     
     function _getJenkinsBuild(url, jenkins_callback) {
@@ -88,7 +89,7 @@ dius.buildlight = function() {
     
     function _createTab(window, title, icon) {
     	return Titanium.UI.createTab({  
-		    icon: icon ? icon :'KS_nav_views.png',
+		    icon: icon ? icon : 'images/tabs/KS_nav_ui.png',
 		    title: title ? title : 'Unknown',
 		    window:window
 		});    	
@@ -121,13 +122,15 @@ dius.buildlight = function() {
 		});
     }
     
-    function _createTextField(default_value, top) {
+    function _createTextField(default_value, top, hint_text) {
     	return Titanium.UI.createTextField({
 			value: default_value ? default_value : 'Enter text',
-			height:35,
-			top: top ? top : 10,
+			height:50,
+            hintText: hint_text ? hint_text : '',
+			top: top ? top : 20,
 			left:10,
 			right:40,
+			font: {fontSize: 12, fontFamily: 'Arial'},
 			borderStyle:Titanium.UI.INPUT_BORDERSTYLE_ROUNDED
 		});
 	}
@@ -143,11 +146,24 @@ dius.buildlight = function() {
 			style:Titanium.UI.iPhone.ActivityIndicatorStyle.PLAIN
 		});
 	}
-	
+
+    function _createButton(title, top, left) {
+        return Titanium.UI.createButton({
+	                title:title,
+                    width:'auto',
+	                height:'auto',
+                    left: left ? left : 0,
+	                top: top ? top :0
+                });
+    }
+
 	function _createSaveButton() {
-		var save = Titanium.UI.createButton({
-			systemButton:Titanium.UI.iPhone.SystemButton.SAVE
-		});
+        var save;
+        if (Ti.Platform.name != 'android') {
+            save = Titanium.UI.createButton({systemButton:Titanium.UI.iPhone.SystemButton.SAVE});
+        } else {
+            save = _createButton('save', 200, 200);
+        }
 		save.addEventListener('click', function() {
 			Ti.API.debug("Saving...");
 			Titanium.UI.createAlertDialog({title:'Save', message:'Configure changes have been saved'}).show();
@@ -157,20 +173,20 @@ dius.buildlight = function() {
 	}
 	
 	function _alertDialog(title, message) {
-		Titanium.UI.createAlertDialog({title:title, message:message}).show();
+		//Titanium.UI.createAlertDialog({title:title, message:message}).show();
 	}
 	
-	function _createCancelButton() {
-		var cancel = Titanium.UI.createButton({
-			systemButton:Titanium.UI.iPhone.SystemButton.CANCEL
-		});
-		cancel.addEventListener('click', function()
-		{
-			//_currentWindow().close();
-			
-		});
-		return cancel;
-	}
+//	function _createCancelButton() {
+//		var cancel = Titanium.UI.createButton({
+//			systemButton:Titanium.UI.iPhone.SystemButton.CANCEL
+//		});
+//		cancel.addEventListener('click', function()
+//		{
+//			//_currentWindow().close();
+//
+//		});
+//		return cancel;
+//	}
 	
 	function _currentWindow() {
 		return Titanium.UI.currentWindow;
@@ -206,13 +222,16 @@ dius.buildlight = function() {
 			_build_light_view.backgroundImage = 'green.png';
             if (_current_status!==undefined && _current_status!==parsedResponse.color) {
                 _updateIndicator("Build success");
+                sound_failure.stop();
                 sound_success.play();
+                
             }
 
 		} else if (parsedResponse.color==='red') {
 			_build_light_view.backgroundImage = 'red.png';
             if (_current_status!==undefined && _current_status!==parsedResponse.color) {
                 _updateIndicator("Build failure");
+                sound_success.stop();
                 sound_failure.play();
             }
 		}
@@ -251,14 +270,19 @@ dius.buildlight = function() {
 			var winUsers = _createWindow("Users");
 			var winConfig = _createWindow("Configure");
 			var config = db.config();
-			_hostTextField = _createTextField(config["host"], 10);
-			_projectNameTextField = _createTextField(config["project_name"], 50);
+			_hostTextField = _createTextField(config["host"], 10, 'host');
+			_projectNameTextField = _createTextField(config["project_name"], 50, 'project name');
 			winConfig.add(_hostTextField);
 			winConfig.add(_projectNameTextField);
 			_textFieldsToSave = [{name:'host',value:_hostTextField},{name:'project_name',value:_projectNameTextField}]
 			var save = _createSaveButton();
-			winConfig.rightNavButton = _createSaveButton();
-			winConfig.leftNavButton = _createCancelButton();
+			if (Ti.Platform.name != 'android') {
+				winConfig.rightNavButton = _createSaveButton();
+				//winConfig.leftNavButton = _createCancelButton();
+			} else {
+				winConfig.add(_createSaveButton());
+				//winConfig.add(_createCancelButton());
+			}
 			_tabGroup.addTab(_createTab(winBS, "Build"));
 			_tabGroup.addTab(_createTab(winUsers, "Users"));
 			_tabGroup.addTab(_createTab(winConfig, "Config"));
@@ -266,8 +290,12 @@ dius.buildlight = function() {
 			if (Ti.Platform.name != 'android') {
 				winBS.setToolbar([_indicator],{animated:false});
 			}
-			_tabGroup.open();
-            _updateIndicator("Loading...");
+			_tabGroup.setActiveTab(1);
+			//_tabGroup.open({
+			//	transition:Titanium.UI.iPhone.AnimationStyle.FLIP_FROM_LEFT
+			//});
+            _tabGroup.open();
+			_updateIndicator("Loading...");
             _updateAnimation();
             var countdownSeconds = setInterval(function() {
 	            _updateBuildLight();
@@ -278,4 +306,6 @@ dius.buildlight = function() {
 }();
 
 dius.buildlight.init();
+
+
 
